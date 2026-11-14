@@ -21,16 +21,66 @@ bot.on('text', async (ctx) => {
   const userUsername = ctx.from.username ? `@${ctx.from.username}` : 'нет юзернейма';
   const text = ctx.message.text;
 
-  // Если пишет сам админ
+  // ЕСЛИ ПИШЕТ АДМИН
   if (userId === ADMIN_ID) {
-    ctx.reply('Вы вошли как администратор VILORA Pharm.');
+    
+    // 1. Команда для отправки сообщения по ID: /send 12345678 Привет!
+    if (text.startsWith('/send')) {
+      const parts = text.split(' ');
+      const targetId = parts[1];
+      const messageText = parts.slice(2).join(' ');
+
+      if (!targetId || !messageText) {
+        return ctx.reply('⚠️ Ошибка формата!\nИспользуй так:\n`/send ID_клиента Текст сообщения`', { parse_mode: 'Markdown' });
+      }
+
+      try {
+        await bot.telegram.sendMessage(
+          targetId,
+          `👨‍💻 <b>Ответ от специалиста VILORA Pharm:</b>\n\n${messageText}`,
+          { parse_mode: 'HTML' }
+        );
+        await ctx.reply('✅ Сообщение успешно отправлено клиенту!');
+      } catch (err) {
+        await ctx.reply('❌ Не удалось отправить сообщение (возможно, клиент заблокировал бота или неверный ID).');
+      }
+      return;
+    }
+
+    // 2. Ответ через Reply (ответ на сообщение-карточку)
+    if (ctx.message.reply_to_message) {
+      const repliedText = ctx.message.reply_to_message.text || '';
+      const match = repliedText.match(/ID:\s*(\d+)/);
+
+      if (match && match[1]) {
+        const targetClientId = match[1];
+        try {
+          await bot.telegram.sendMessage(
+            targetClientId,
+            `👨‍💻 <b>Ответ от специалиста VILORA Pharm:</b>\n\n${text}`,
+            { parse_mode: 'HTML' }
+          );
+          await ctx.reply('✅ Ответ успешно отправлен клиенту!');
+        } catch (err) {
+          await ctx.reply('❌ Не удалось отправить сообщение клиенту.');
+        }
+        return;
+      }
+    }
+
+    ctx.reply(
+      'ℹ️ **Панель администратора VILORA Pharm:**\n\n' +
+      '• Чтобы ответить клиенту, сделайте **Reply** (Ответить) на его карточку.\n' +
+      '• Или используйте команду: `/send ID_клиента Текст`',
+      { parse_mode: 'Markdown' }
+    );
     return;
   }
 
-  // Ответ клиенту
+  // ЕСЛИ ПИШЕТ КЛИЕНТ
   ctx.reply('Спасибо за сообщение! Наш специалист свяжется с вами в ближайшее время.');
 
-  // Отправка уведомления тебе (админу) через HTML-формат
+  // Пересылаем уведомление админу
   try {
     await bot.telegram.sendMessage(
       ADMIN_ID,
@@ -49,7 +99,7 @@ bot.catch((err, ctx) => {
   console.error(`Ошибка в боте для обновления ${ctx.updateType}:`, err);
 });
 
-// HTTP-сервер для Render
+// HTTP-сервер для Render (обязательная привязка порта)
 const PORT = process.env.PORT || 3000;
 http
   .createServer((req, res) => {
@@ -60,8 +110,9 @@ http
     console.log(`HTTP server listening on port ${PORT}`);
   });
 
+// ЗАПУСК ТЕЛЕГРАМ-БОТА (сбрасываем зависшие сеансы через dropPendingUpdates)
 bot
-  .launch()
+  .launch({ dropPendingUpdates: true })
   .then(() => {
     console.log('Telegram-бот VILORA Pharm успешно запущен!');
   })
