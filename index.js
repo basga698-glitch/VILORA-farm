@@ -6,11 +6,9 @@ const MY_CHAT_ID = 509898460;
 const bot = new Telegraf(BOT_TOKEN);
 const messageMap = new Map();
 
-// Обработка входящих сообщений
 bot.on('message', async (ctx) => {
   const chatId = ctx.chat.id;
 
-  // Если пишет пользователь (не админ)
   if (chatId !== MY_CHAT_ID) {
     try {
       const forwarded = await ctx.telegram.forwardMessage(MY_CHAT_ID, chatId, ctx.message.message_id);
@@ -20,7 +18,6 @@ bot.on('message', async (ctx) => {
       console.error('Ошибка пересылки:', err);
     }
   } 
-  // Если пишет админ (ты) с компьютера/телефона
   else if (chatId === MY_CHAT_ID) {
     if (ctx.message.reply_to_message) {
       const repliedMsgId = ctx.message.reply_to_message.message_id;
@@ -32,20 +29,26 @@ bot.on('message', async (ctx) => {
           console.log(`📤 Ответ отправлен пользователю ${targetUserId}`);
         } catch (err) {
           console.error('Ошибка отправки:', err);
-          await ctx.telegram.sendMessage(MY_CHAT_ID, '⚠️ Не удалось отправить сообщение.');
         }
-      } else {
-        await ctx.telegram.sendMessage(MY_CHAT_ID, '⚠️ Получатель не найден (возможно, бот перезапускался).');
       }
     }
   }
 });
 
-// Запускаем бота в облаке
-bot.launch()
-  .then(() => console.log('🚀 Бот успешно запущен в облаке Render!'))
-  .catch((err) => console.error('❌ Ошибка запуска:', err));
+async function startBot() {
+  try {
+    console.log('🔄 Сбрасываем старые соединения Telegram...');
+    await bot.telegram.deleteWebhook({ drop_pending_updates: true });
+    
+    await bot.launch();
+    console.log('🚀 Бот успешно запущен в облаке Render!');
+  } catch (err) {
+    console.error('❌ Ошибка запуска:', err.message);
+    setTimeout(startBot, 5000);
+  }
+}
 
-// Корректная остановка
+startBot();
+
 process.once('SIGINT', () => bot.stop('SIGINT'));
 process.once('SIGTERM', () => bot.stop('SIGTERM'));
