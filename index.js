@@ -1,50 +1,71 @@
 const { Telegraf } = require('telegraf');
 const http = require('http');
 
-// Проверка токена
-const token = process.env.BOT_TOKEN;
-if (!token) {
-  console.error('Ошибка: не задана переменная окружения BOT_TOKEN');
-  process.exit(1);
-}
+// Токен бота и ID администратора вшиты напрямую
+const BOT_TOKEN = '8896495882:AAFj9M4UjubMvq6Ss3OdSSrMiQ3Vr-Z72hU';
+const ADMIN_ID = 509898460;
 
-const bot = new Telegraf(token);
+const bot = new Telegraf(BOT_TOKEN);
 
-// --- СЮДА МОЖЕШЬ ДОБАВЛЯТЬ СВОИ КОМАНДЫ И ЛОГИКУ БОТА ---
-
+// Команда /start
 bot.start((ctx) => {
-  ctx.reply('Привет! Бот VILORA Farm успешно запущен и работает! 💊');
+  ctx.reply('Привет! Добро пожаловать в VILORA Pharm 💊\nВыберите нужный раздел или отправьте нам сообщение.');
 });
 
+// Команда /help
 bot.help((ctx) => {
-  ctx.reply('Используйте /start для запуска бота.');
+  ctx.reply('Доступные команды:\n/start — Главное меню\n/help — Помощь');
 });
 
-bot.on('text', (ctx) => {
-  ctx.reply(`Получено сообщение: ${ctx.message.text}`);
+// Обработка текстовых сообщений от клиентов
+bot.on('text', async (ctx) => {
+  const userId = ctx.from.id;
+  const userName = ctx.from.first_name || 'Клиент';
+  const userUsername = ctx.from.username ? `@${ctx.from.username}` : 'нет юзернейма';
+  const text = ctx.message.text;
+
+  // Если сообщение пишет сам админ (ты)
+  if (userId === ADMIN_ID) {
+    ctx.reply('Вы вошли как администратор VILORA Pharm.');
+    return;
+  }
+
+  // Ответ клиенту
+  ctx.reply('Спасибо за сообщение! Наш специалист свяжется с вами в ближайшее время.');
+
+  // Пересылка уведомления тебе (админу)
+  try {
+    await bot.telegram.sendMessage(
+      ADMIN_ID,
+      `📩 **Новое сообщение в VILORA Pharm!**\n\n👤 **От:** ${userName} (${userUsername})\n🆔 **ID:** \`${userId}\`\n💬 **Текст:** ${text}`,
+      { parse_mode: 'Markdown' }
+    );
+  } catch (err) {
+    console.error('Ошибка при отправке уведомления администратору:', err);
+  }
 });
 
-// Обработка ошибок
+// Обработка ошибок бота
 bot.catch((err, ctx) => {
   console.error(`Ошибка в боте для обновления ${ctx.updateType}:`, err);
 });
 
-// --- HTTP-СЕРВЕР ДЛЯ RENDER (РЕШАЕТ ПРОБЛЕМУ С ПОРТОМ) ---
+// HTTP-сервер для Render (решает проблему с привязкой порта)
 const PORT = process.env.PORT || 3000;
 http
   .createServer((req, res) => {
     res.writeHead(200, { 'Content-Type': 'text/plain; charset=utf-8' });
-    res.end('VILORA Farm Bot is running and healthy!');
+    res.end('VILORA Pharm Bot is running and healthy!');
   })
   .listen(PORT, '0.0.0.0', () => {
     console.log(`HTTP server listening on port ${PORT}`);
   });
 
-// --- ЗАПУСК ТЕЛЕГРАМ-БОТА ---
+// Запуск Telegram-бота
 bot
   .launch()
   .then(() => {
-    console.log('Telegram-бот успешно запущен!');
+    console.log('Telegram-бот VILORA Pharm успешно запущен!');
   })
   .catch((err) => {
     console.error('Ошибка при запуске бота:', err);
