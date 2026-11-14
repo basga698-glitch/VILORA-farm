@@ -35,7 +35,6 @@ bot.on('message', async (ctx) => {
   }
 });
 
-// Безопасный запуск с предварительным сбросом зависших сессий
 async function startBot() {
   try {
     console.log('🔄 Сбрасываем старые соединения Telegram...');
@@ -45,7 +44,6 @@ async function startBot() {
     console.log('🚀 Бот успешно запущен в облаке Render!');
   } catch (err) {
     console.error('❌ Ошибка запуска:', err.message);
-    // Пробуем перезапустить через 5 секунд при сбое
     setTimeout(startBot, 5000);
   }
 }
