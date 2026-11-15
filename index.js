@@ -3,17 +3,12 @@ const http = require('http');
 
 const BOT_TOKEN = '8896495882:AAFj9M4UjubMvq6Ss3OdSSrMiQ3Vr-Z72hU'; 
 const MY_CHAT_ID = 509898460; 
+const RENDER_URL = 'https://vilora-farm.onrender.com'; // Ваш публичный URL на Render
+const WEBHOOK_PATH = `/webhook-${BOT_TOKEN.split(':')[1]}`; // Уникальный защищенный путь
 
 const bot = new Telegraf(BOT_TOKEN);
 
-const PORT = process.env.PORT || 3000;
-http.createServer((req, res) => {
-  res.writeHead(200, { 'Content-Type': 'text/plain' });
-  res.end('Bot is running and alive!');
-}).listen(PORT, () => {
-  console.log(`🌐 HTTP-сервер успешно запущен на порту ${PORT}`);
-});
-
+// Логика пересылки и ответов
 bot.on('message', async (ctx) => {
   const chatId = ctx.chat.id;
 
@@ -48,23 +43,37 @@ bot.on('message', async (ctx) => {
   }
 });
 
-async function startBot() {
-  try {
-    console.log('⏳ Безопасная пауза 12 сек для сброса старых сессий...');
-    await new Promise(resolve => setTimeout(resolve, 12000));
+// Создаем HTTP-сервер, который принимает и запросы от Render (для поддержания активности), и вебхуки от Telegram
+const PORT = process.env.PORT || 3000;
 
-    console.log('🔄 Сбрасываем старые вебхуки и соединения...');
-    await bot.telegram.deleteWebhook({ drop_pending_updates: true });
-    
-    await bot.launch();
-    console.log('🚀 Бот успешно запущен в облаке Render и готов к работе!');
-  } catch (err) {
-    console.error('❌ Ошибка запуска:', err.message);
-    setTimeout(startBot, 8000);
+const server = http.createServer((req, res) => {
+  if (req.url === WEBHOOK_PATH && req.method === 'POST') {
+    // Передаем вебхук-запрос в Telegraf
+    return bot.webhookCallback(WEBHOOK_PATH)(req, res);
   }
-}
+  
+  // Простой ответ для проверки жизнеспособности сервера Render
+  res.writeHead(200, { 'Content-Type': 'text/plain' });
+  res.end('Bot webhook server is active and running!');
+});
 
-startBot();
+server.listen(PORT, async () => {
+  console.log(`🌐 HTTP-сервер запущен на порту ${PORT}`);
 
-process.once('SIGINT', () => bot.stop('SIGINT'));
-process.once('SIGTERM', () => bot.stop('SIGTERM'));
+  try {
+    const fullWebhookUrl = `${RENDER_URL}${WEBHOOK_PATH}`;
+    console.log(`🔗 Устанавливаем вебхук Telegram: ${fullWebhookUrl}`);
+    
+    // Удаляем старые вебхуки/опросы и регистрируем новый вебхук
+    await bot.telegram.deleteWebhook({ drop_pending_updates: true });
+    await bot.telegram.setWebhook(fullWebhookUrl);
+    
+    console.log('🚀 Вебхук успешно зарегистрирован! Бот готов принимать сообщения.');
+  } catch (err) {
+    console.error('❌ Ошибка настройки вебхука:', err.message);
+  }
+});
+
+// Корректное завершение работы
+process.once('SIGINT', () => server.close());
+process.once('SIGTERM', () => server.close());
