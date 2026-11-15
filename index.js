@@ -6,7 +6,7 @@ const MY_CHAT_ID = 509898460;
 
 const bot = new Telegraf(BOT_TOKEN);
 
-// 1. Создаем мини-сервер для Render, чтобы он видел открытый порт и не перезапускал сервис
+// HTTP-сервер для Render, чтобы сервис не засыпал и видел порт
 const PORT = process.env.PORT || 3000;
 http.createServer((req, res) => {
   res.writeHead(200, { 'Content-Type': 'text/plain' });
@@ -15,7 +15,6 @@ http.createServer((req, res) => {
   console.log(`🌐 HTTP-сервер успешно запущен на порту ${PORT}`);
 });
 
-// 2. Логика работы бота с защитой от потери состояния (через теги в чате)
 bot.on('message', async (ctx) => {
   const chatId = ctx.chat.id;
 
@@ -52,6 +51,10 @@ bot.on('message', async (ctx) => {
 
 async function startBot() {
   try {
+    // Ждем 8 секунд, чтобы старый инстанс Render гарантированно отключился
+    console.log('⏳ Ожидание завершения старого инстанса (8 сек)...');
+    await new Promise(resolve => setTimeout(resolve, 8000));
+
     console.log('🔄 Сбрасываем старые соединения Telegram...');
     await bot.telegram.deleteWebhook({ drop_pending_updates: true });
     
