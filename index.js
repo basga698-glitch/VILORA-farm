@@ -6,7 +6,6 @@ const MY_CHAT_ID = 509898460;
 
 const bot = new Telegraf(BOT_TOKEN);
 
-// HTTP-сервер для Render, чтобы сервис не засыпал и видел порт
 const PORT = process.env.PORT || 3000;
 http.createServer((req, res) => {
   res.writeHead(200, { 'Content-Type': 'text/plain' });
@@ -51,18 +50,17 @@ bot.on('message', async (ctx) => {
 
 async function startBot() {
   try {
-    // Ждем 8 секунд, чтобы старый инстанс Render гарантированно отключился
-    console.log('⏳ Ожидание завершения старого инстанса (8 сек)...');
-    await new Promise(resolve => setTimeout(resolve, 8000));
+    console.log('⏳ Безопасная пауза 12 сек для сброса старых сессий...');
+    await new Promise(resolve => setTimeout(resolve, 12000));
 
-    console.log('🔄 Сбрасываем старые соединения Telegram...');
+    console.log('🔄 Сбрасываем старые вебхуки и соединения...');
     await bot.telegram.deleteWebhook({ drop_pending_updates: true });
     
     await bot.launch();
-    console.log('🚀 Бот успешно запущен в облаке Render!');
+    console.log('🚀 Бот успешно запущен в облаке Render и готов к работе!');
   } catch (err) {
     console.error('❌ Ошибка запуска:', err.message);
-    setTimeout(startBot, 5000);
+    setTimeout(startBot, 8000);
   }
 }
 
